@@ -6,5 +6,4 @@ RUN python3 -m pip install -r docker-requirements.txt
 COPY . /app
 WORKDIR /app
 
-ENTRYPOINT ["python3", "/app/scripts/estop.py"]
-
+ENTRYPOINT ["python3", "/app/scripts/server.py"]
