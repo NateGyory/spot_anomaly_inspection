@@ -1,0 +1,3 @@
+./scripts/.env_local
+./scripts/__pycache__
+./estop_service.tar
