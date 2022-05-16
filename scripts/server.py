@@ -1,16 +1,24 @@
-from flask import Flask, request
+import os
+import time
+
+#from flask import Flask, request
 from estop import EstopService
 
-app = Flask(__name__)
-estop = EstopService()
+hostname = os.getenv('HOSTNAME')
+username = os.getenv('SPOT_USER')
+password = os.getenv('SPOT_PASSWORD')
+timeout = int(os.getenv('TIMEOUT'))
 
-@app.route("/spot_deploy", methods=['POST'])
-def servo1():
-    request_data = request.get_json()
+estop = EstopService(hostname, username, password, timeout)
 
-    waypoint_id = request_data['waypoint_id']
+#app = Flask(__name__)
+#
+#@app.route("/spot_deploy", methods=['POST'])
+#def spot_deploy():
+#    estop = EstopService(hostname, username, password, timeout)
+#    request_data = request.get_json()
+#
+#    waypoint_id = request_data['waypoint_id']
+#
+#    print('waypoint_id is: ', waypoint_id)
 
-    # Get estop control
-    estop.allow()
-
-    # Send request to anomaly deploy with waypoint_id

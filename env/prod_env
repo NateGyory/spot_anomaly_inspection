@@ -1,0 +1,7 @@
+export FLASK_APP=server
+# TODO change this to prod when done
+export FLASK_ENV=development
+export SPOT_USER=
+export SPOT_PASSWORD=
+export TIMEOUT=5
+export HOSTNAME=192.168.50.3
