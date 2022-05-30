@@ -1,0 +1,19 @@
+version: "3.3"
+services:
+  spot_anomaly_deploy:
+    container_name: spot_anomaly_deploy
+    build: .
+    network_mode: "host"
+    ports:
+      - "5000:5000"
+    environment:
+      - SPOT_USER=${SPOT_USER}
+      - SPOT_PASSWORD=${SPOT_PASSWORD}
+      - FLASK_APP=${FLASK_APP}
+      - FLASK_ENV=${FLASK_ENV}
+      - TIMEOUT=${TIMEOUT}
+      - HOSTNAME=${HOSTNAME}
+    volumes:
+      - "./scripts/:/app/scripts"
+    entrypoint: ["flask",  "run"]
+

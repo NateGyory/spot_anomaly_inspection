@@ -1,6 +1,7 @@
+#!/bin/bash
+
 export FLASK_APP=server
 export FLASK_ENV=development
-export SPOT_USER=
-export SPOT_PASSWORD=
 export TIMEOUT=5
+# Host when running from laptop
 export HOSTNAME=192.168.80.3

@@ -1,7 +1,7 @@
+#!/bin/bash
+
 export FLASK_APP=server
-# TODO change this to prod when done
 export FLASK_ENV=development
-export SPOT_USER=
-export SPOT_PASSWORD=
 export TIMEOUT=5
+# SPOT host when running from docker on core
 export HOSTNAME=192.168.50.3
