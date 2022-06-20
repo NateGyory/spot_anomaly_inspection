@@ -1,0 +1,9 @@
+1) Record map for spot to deploy on
+2) Start map record service
+3) Drive spot around
+4) Run loop closure
+5) Run anchoring
+6) Move move to repo and integrate it into code
+7) attempt to deploy spot to waypoints locally with waypoint hardcoded
+8) attempt to deploy spot to waypoint via flask
+9) attempt to deploy spot to waypoint via flask and docker

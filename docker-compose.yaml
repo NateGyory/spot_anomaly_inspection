@@ -14,6 +14,8 @@ services:
       - TIMEOUT=${TIMEOUT}
       - HOSTNAME=${HOSTNAME}
     volumes:
-      - "./scripts/:/app/scripts"
-    entrypoint: ["flask",  "run"]
+      - "./scripts:/app/scripts"
+      - "./graph_nav/downloaded_graph:/app/graph_nav"
+        #entrypoint: ["flask",  "run"]
+    entrypoint: ["tail",  "-f", "/dev/null"]
 

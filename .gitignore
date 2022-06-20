@@ -3,3 +3,5 @@ env/secret_env
 scripts/__pycache__
 
 spot_anomaly_deploy.tar
+
+graph_nav

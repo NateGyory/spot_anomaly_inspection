@@ -10,6 +10,10 @@ from bosdyn.client.robot_command import RobotCommandClient, blocking_stand
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive, LeaseWallet
 from bosdyn.client.graph_nav import GraphNavClient
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
+from bosdyn.client.frame_helpers import get_odom_tform_body
+from bosdyn.api.graph_nav import nav_pb2
+
+from bosdyn.api.graph_nav import map_pb2
 
 import graph_nav_util
 
@@ -59,7 +63,8 @@ class EstopService():
         current_annotation_name_to_wp_id = dict()
 
         # folder path for graph_nav data
-        graph_nav_folder = upload_path
+        #graph_nav_folder = "/app/graph_nav"
+        graph_nav_folder = "../graph_nav/downloaded_graph"
 
         print("Reading in graph from graph_nav folder")
         with open(graph_nav_folder + "/graph", "rb") as graph_file:
@@ -105,42 +110,39 @@ class EstopService():
             graph_nav_client.upload_edge_snapshot(edge_snapshot)
             print("Uploaded {}".format(edge_snapshot.id))
 
-        # The upload is complete! Check that the robot is localized to the graph,
+        # Get waypoints for navigation
 
-        # Take the first argument as the localization waypoint.
-
-        # TODO Need to find the waypoint for our start point and hard code it here
-        start_waypoint = "TODO"
-        localization_waypoint = graph_nav_util.find_unique_waypoint_id(
-            start_waypoint, current_graph, current_annotation_name_to_wp_id)
-        if not localization_waypoint:
-            # TODO wrap the finish code in a function so robot doesnt just floop dowm
-            print("Failed to find the unique waypoint id. Exiting")
+        # Download current graph
+        graph = graph_nav_client.download_graph()
+        if graph is None:
+            print("Empty graph.")
             return
+        current_graph = graph
+
+        localization_id = graph_nav_client.get_localization_state().localization.waypoint_id
+
+        # Update and print waypoints and edges
+        current_annotation_name_to_wp_id, current_edges = graph_nav_util.update_waypoints_and_edges(
+            graph, localization_id)
+
+        # The upload is complete! Check that the robot is localized to the graph,
 
         robot_state = state_client.get_robot_state()
         current_odom_tform_body = get_odom_tform_body(
             robot_state.kinematic_state.transforms_snapshot).to_proto()
 
-        # Create an initial localization to the specified waypoint as the identity.
+        # Create an empty instance for initial localization since we are asking it to localize
+        # based on the nearest fiducial.
         localization = nav_pb2.Localization()
-        localization.waypoint_id = localization_waypoint
-        localization.waypoint_tform_body.rotation.w = 1.0
-        graph_nav_client.set_localization(
-            initial_guess_localization=localization,
-            # It's hard to get the pose perfect, search +/-20 deg and +/-20cm (0.2m).
-            max_distance=0.2,
-            max_yaw=20.0 * math.pi / 180.0,
-            fiducial_init=graph_nav_pb2.SetLocalizationRequest.FIDUCIAL_INIT_NO_FIDUCIAL,
-            ko_tform_body=current_odom_tform_body)
-
+        graph_nav_client.set_localization(initial_guess_localization=localization,
+                                                ko_tform_body=current_odom_tform_body)
         localization_state = graph_nav_client.get_localization_state()
         if not localization_state.localization.waypoint_id:
             print("The robot was unable to localize, shutting down")
 
         print("Robot is localized, navigating to destination waypoint")
 
-        dest_waypoint = "TODO passed in by server post"
+        dest_waypoint = "fabled-ant-9U+9jNqo.Z+yNUDUEj2R.A=="
         # TODO do we need this
         lease = lease_wallet.get_lease()
         destination_waypoint = graph_nav_util.find_unique_waypoint_id(
@@ -151,15 +153,13 @@ class EstopService():
             print("Failed to find the unique waypoint id. Exiting")
             return
 
-        if not self.toggle_power(should_power_on=True):
-            print("Failed to power on the robot, and cannot complete navigate to request.")
-            # TODO wrap the finish code in a function so robot doesnt just floop dowm
-            return
+        robot.power_on(timeout_sec=20)
+        powered_on = True;
 
         # Stop the lease keep-alive and create a new sublease for graph nav.
         lease = lease_wallet.advance()
         sublease = lease.create_sublease()
-        lease_keepalive.shutdown()
+        lease_keep_alive.shutdown()
 
         # Navigate to the destination waypoint.
         nav_to_cmd_id = None
@@ -181,11 +181,10 @@ class EstopService():
             is_finished = self._check_success(nav_to_cmd_id)
 
         lease = lease_wallet.advance()
-        lease_keepalive = LeaseKeepAlive(lease_client)
+        lease_keep_alive = LeaseKeepAlive(lease_client)
 
-        if powered_on:
-            # Sit the robot down + power off after the navigation command is complete.
-            self.toggle_power(should_power_on=False)
+        # Power off robot
+        robot.power_off(cut_immediately=False)
 
     def _check_success(self, command_id=-1):
         """Use a navigation command id to get feedback from the robot and sit when command succeeds."""
