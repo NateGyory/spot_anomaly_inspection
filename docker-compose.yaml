@@ -16,6 +16,6 @@ services:
     volumes:
       - "./scripts:/app/scripts"
       - "./graph_nav/downloaded_graph:/app/graph_nav"
-        #entrypoint: ["flask",  "run"]
-    entrypoint: ["tail",  "-f", "/dev/null"]
+    entrypoint: ["flask",  "run"]
+        #entrypoint: ["tail",  "-f", "/dev/null"]
 
