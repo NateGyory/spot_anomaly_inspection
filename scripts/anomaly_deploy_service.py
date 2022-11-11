@@ -17,6 +17,7 @@ from bosdyn.client.estop import EstopEndpoint, EstopKeepAlive, EstopClient
 from bosdyn.client.power import safe_power_off, PowerClient, power_on
 from bosdyn.client.exceptions import ResponseError
 from bosdyn.client.graph_nav import GraphNavClient
+from bosdyn.client.docking import blocking_dock_robot, blocking_undock
 from bosdyn.client.frame_helpers import get_odom_tform_body
 from bosdyn.client.lease import LeaseClient, LeaseKeepAlive, LeaseWallet
 from bosdyn.client.math_helpers import Quat, SE3Pose
@@ -76,8 +77,8 @@ class AnomalyDeployService():
         self._current_annotation_name_to_wp_id = dict()
 
         # Filepath for uploading a saved graph's and snapshots too.
-        self._upload_filepath = "/app/graph_nav"
-        #self._upload_filepath = "/app/graph_nav"
+        self._upload_filepath = "/home/nate/Development/spot_graph_nav/downloaded_graph"
+        #self._upload_filepath = "/app/graph_nav/downloaded_graph"
 
     def _get_localization_state(self, *args):
         """Get the current localization and state of the robot."""
@@ -297,9 +298,9 @@ class AnomalyDeployService():
         self._lease_keepalive = LeaseKeepAlive(self._lease_client)
 
         # Update the lease and power off the robot if appropriate.
-        if self._powered_on and not self._started_powered_on:
-            # Sit the robot down + power off after the navigation command is complete.
-            self.toggle_power(should_power_on=False)
+        #if self._powered_on and not self._started_powered_on:
+        #    # Sit the robot down + power off after the navigation command is complete.
+        #    self.toggle_power(should_power_on=False)
 
     def _navigate_route(self, *args):
         """Navigate through a specific route of waypoints."""
@@ -457,12 +458,19 @@ class AnomalyDeployService():
         self._upload_graph_and_snapshots()
         print("Before localize")
         # Localize robot
-        self._set_initial_localization_fiducial()
+        #self._set_initial_localization_fiducial()
         print("Before list")
         # List waypoint_ids
-        self._list_graph_waypoint_and_edge_ids()
+        #self._list_graph_waypoint_and_edge_ids()
         # Navigate to hardcoded waypoint_id
         print("Before navigate_to")
+        self._robot.power_on()
+        blocking_undock(self._robot)
         self._navigate_to(destination_waypoint_id)
+        self._navigate_to('elite-slug-WcT.WiKzUEw0lsw2s+iF4Q==')
+        blocking_dock_robot(self._robot, 520)
+        if self._powered_on and not self._started_powered_on:
+            # Sit the robot down + power off after the navigation command is complete.
+            self.toggle_power(should_power_on=False)
         self._on_quit()
 

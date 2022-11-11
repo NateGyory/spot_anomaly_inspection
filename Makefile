@@ -17,4 +17,4 @@ waypoint_deploy_prod:
 waypoint_deploy_local:
 	curl --location --request POST 'localhost:5000/spot_deploy' \
 		 --header 'Content-Type: application/json' \
-		 --data-raw '{ "waypoint_id": "fabled-ant-9U+9jNqo.Z+yNUDUEj2R.A==" }'
+		 --data-raw '{ "waypoint_id": "voiced-beetle-ZgnfqBXTtnersiXxG83FwA==" }'

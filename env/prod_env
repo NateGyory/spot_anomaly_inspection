@@ -4,4 +4,4 @@ export FLASK_APP=server
 export FLASK_ENV=development
 export TIMEOUT=5
 # SPOT host when running from docker on core
-export HOSTNAME=192.168.50.3
+export HOSTNAME=192.168.80.3

@@ -15,7 +15,7 @@ services:
       - HOSTNAME=${HOSTNAME}
     volumes:
       - "./scripts:/app/scripts"
-      - "./graph_nav/downloaded_graph:/app/graph_nav"
+      - "./graph_nav/downloaded_graph:/app/graph_nav/downloaded_graph"
     entrypoint: ["flask",  "run"]
         #entrypoint: ["tail",  "-f", "/dev/null"]
 
