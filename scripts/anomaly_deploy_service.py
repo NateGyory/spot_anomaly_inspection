@@ -6,6 +6,10 @@ import math
 import os
 import time
 
+from PIL import Image
+
+import io
+
 from bosdyn.api import geometry_pb2
 from bosdyn.api import power_pb2
 from bosdyn.api import robot_state_pb2
@@ -23,11 +27,68 @@ from bosdyn.client.lease import LeaseClient, LeaseKeepAlive, LeaseWallet
 from bosdyn.client.math_helpers import Quat, SE3Pose
 from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
 from bosdyn.client.robot_state import RobotStateClient
+from bosdyn.client.image import ImageClient
 import bosdyn.client.util
 import google.protobuf.timestamp_pb2
 
 import graph_nav_util
 
+import asyncio
+import base64
+import json
+import logging
+import sys
+import threading
+import time
+
+import cv2
+import numpy as np
+import requests
+from aiortc import MediaStreamTrack, RTCConfiguration, RTCPeerConnection, RTCSessionDescription
+from aiortc.contrib.media import MediaRecorder
+from webrtc_client import WebRTCClient
+
+from bosdyn.client.command_line import Command, Subcommands
+from audio import AudioCommands
+from compositor import CompositorCommands
+from health import HealthCommands
+from lighting import LightingCommands
+from media_log import MediaLogCommands
+from network import NetworkCommands
+from power import PowerCommands
+from ptz import PtzCommands
+from streamquality import StreamQualityCommands
+from utils import UtilityCommands
+from version import VersionCommands
+from webrtc import WebRTCCommands
+
+import time
+
+import bosdyn.client
+from bosdyn.client import spot_cam
+from bosdyn.client.util import add_common_arguments, setup_logging
+
+async def record_webrtc(opts, token, recorder):
+    config = RTCConfiguration(iceServers=[])
+    client = WebRTCClient(opts["hostname"], 31102, "h264.sdp",
+                          False, token, config, media_recorder=recorder,
+                          recorder_type="audio")
+    await client.start()
+
+    # wait for connection to be established before recording
+    while client.pc.iceConnectionState != 'completed':
+        await asyncio.sleep(0.1)
+
+    # start recording
+    await recorder.start()
+    try:
+        await asyncio.sleep(70)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # close everything
+        await client.pc.close()
+        await recorder.stop()
 
 class AnomalyDeployService():
     def __init__(self, hostname, username, password, timeout):
@@ -35,6 +96,10 @@ class AnomalyDeployService():
         sdk = bosdyn.client.create_standard_sdk('anomaly_deploy_service')
         self._robot = sdk.create_robot(hostname)
         self._robot.authenticate(username, password)
+
+        spot_cam.register_all_service_clients(sdk)
+
+        self._image_client = self._robot.ensure_client(ImageClient.default_service_name)
 
         self._estop_client = self._robot.ensure_client(EstopClient.default_service_name)
         self._estop_endpoint = EstopEndpoint(self._estop_client, "test", timeout)
@@ -463,12 +528,46 @@ class AnomalyDeployService():
         # List waypoint_ids
         #self._list_graph_waypoint_and_edge_ids()
         # Navigate to hardcoded waypoint_id
+
         print("Before navigate_to")
         self._robot.power_on()
         blocking_undock(self._robot)
+        self._set_initial_localization_fiducial()
         self._navigate_to(destination_waypoint_id)
+
+        # TAKE PICTURE WHERE ANOMALY HAPPENED
+        back_fisheye_image = image_response = self._image_client.get_image_from_sources(["back_fisheye_image"])[0]
+        frontleft_fisheye_image = image_response = self._image_client.get_image_from_sources(["frontleft_fisheye_image"])[0]
+        frontright_fisheye_image = image_response = self._image_client.get_image_from_sources(["frontright_fisheye_image"])[0]
+        left_fisheye_image = image_response = self._image_client.get_image_from_sources(["left_fisheye_image"])[0]
+        right_fisheye_image = image_response = self._image_client.get_image_from_sources(["right_fisheye_image"])[0]
+
+        back_fisheye_pil = Image.open(io.BytesIO(back_fisheye_image.shot.image.data))
+        frontleft_fisheye_pil = Image.open(io.BytesIO(frontleft_fisheye_image.shot.image.data))
+        frontright_fisheye_pil = Image.open(io.BytesIO(frontright_fisheye_image.shot.image.data))
+        left_fisheye_pil = Image.open(io.BytesIO(left_fisheye_image.shot.image.data))
+        right_fisheye_pil = Image.open(io.BytesIO(right_fisheye_image.shot.image.data))
+
+        back_fisheye_pil.save("back_fisheye.jpg")
+        frontleft_fisheye_pil.save("frontleft_fisheye.jpg")
+        frontright_fisheye_pil.save("frontright_fishey.jpg")
+        left_fisheye_pil.save("left_fisheye.jpg")
+        right_fisheye_pil.save("right_fisheye.jpg")
+
+
+        opts = {
+                "hostname": "192.168.80.3",
+                }
+        recorder = MediaRecorder('h264.sdp.wav')
+        # run event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(record_webrtc(opts, self._robot.user_token, recorder))
+
+        # SPOT redock
         self._navigate_to('elite-slug-WcT.WiKzUEw0lsw2s+iF4Q==')
         blocking_dock_robot(self._robot, 520)
+
         if self._powered_on and not self._started_powered_on:
             # Sit the robot down + power off after the navigation command is complete.
             self.toggle_power(should_power_on=False)
